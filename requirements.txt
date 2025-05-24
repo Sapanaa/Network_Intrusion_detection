@@ -11,3 +11,6 @@ tensorflow
 pushover
 streamlit
 shap
+pyshark
+scapy
+plotly

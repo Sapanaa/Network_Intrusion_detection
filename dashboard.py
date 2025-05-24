@@ -5,6 +5,7 @@ from PIL import Image
 import glob
 import joblib
 import numpy as np
+import pyshark
 
 def main():
     st.set_page_config(page_title="Intrusion Detection Dashboard", layout="wide")
@@ -104,6 +105,9 @@ def main():
                 scaler = joblib.load("models/scaler_multi.joblib")  # Load the scaler
                 pca = joblib.load("models/pca_transformer_multi.joblib")  # Load PCA transformer
                 rf_model = joblib.load("models/RandomForest_multi.joblib")  # Load the RandomForest model
+                label_encoder = joblib.load("models/label_encoder_multi.joblib")
+
+
             except Exception as e:
                 st.error(f"Error loading scaler, PCA or model: {e}")
                 return
@@ -141,12 +145,23 @@ def main():
             # Add the prediction column to the original DataFrame
             df['Prediction'] = predictions
 
+            # Map numeric predictions to class labels
+            df['Prediction_Label'] = label_encoder.inverse_transform(predictions)
+
+
             st.success("✅ Prediction complete!")
             st.write(df[['Prediction']].head())
 
             # Provide the option to download the results
             csv = df.to_csv(index=False)
             st.download_button("Download Prediction CSV", csv, file_name="predictions.csv", mime="text/csv")
+
+    
+
+
+
+    
+            
 
 if __name__ == "__main__":
     main()
