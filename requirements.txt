@@ -8,9 +8,6 @@ joblib
 tqdm
 pyarrow
 tensorflow
-pushover
 streamlit
 shap
-pyshark
-scapy
-plotly
+secure-smtplib

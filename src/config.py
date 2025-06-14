@@ -89,3 +89,9 @@ AVERAGING_METHOD_MULTICLASS = 'weighted'
 # Alert Settings
 ENABLE_ALERTS = True  # Enable/disable alerts
 ALERT_RATE_LIMIT_SECONDS = 1
+
+
+
+###
+INCIDENT_LOG_FILE = os.path.join(RESULT_DIR, "incidents.csv")
+PREDICTION_FILE = os.path.join(RESULT_DIR, "upload_predictions.csv")

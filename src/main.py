@@ -294,7 +294,7 @@ def run_pipeline(force_reload=False, force_clean=False, force_engineer=False, fo
             print("\n--- Overall Results Summary ---")
             cols_to_show = [col for col in results_df.columns if 'matrix' not in col]
             print(results_df[cols_to_show])
-            summary_path = os.path.join(config.RESULT_DIR, "evaluation_summary.csv")
+            summary_path = os.path.join(config.RESULT_DIR, "evaluation_summary_multi.csv")
             try:
                 results_df.to_csv(summary_path)
                 print(f"Evaluation summary saved to {summary_path}")

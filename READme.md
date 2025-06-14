@@ -1,4 +1,4 @@
-# End-to-End Network Anomaly Detection on CIC-IDS2017
+# End-to-End Network Detection on CIC-IDS2017
 
 ## Overview
 
@@ -7,7 +7,6 @@ This project implements a comprehensive, end-to-end machine learning pipeline fo
 Built using Python and common data science libraries (Pandas, Scikit-learn, TensorFlow/Keras, XGBoost), this project demonstrates a practical workflow applicable to enhancing network infrastructure security.
 
 ## Features
-
 *   **Data Loading & Merging:** Handles multiple large CSV files from the CIC-IDS2017 dataset, merging them efficiently using Pandas and saving intermediate results in Parquet format.
 *   **Robust Data Cleaning:** Implements steps to handle missing values (NaNs), infinite values, and duplicate entries commonly found in network flow data.
 *   **Exploratory Data Analysis (EDA):** Generates plots (optional via config) including correlation heatmaps, feature distributions, and feature-vs-label plots to understand the data characteristics.

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/app/data
+      - ./trained_models:/app/trained_models
+      - ./evaluation_plots:/app/evaluation_plots
+      - ./results:/app/results
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_PATH=/app/data/CICIDS2017.csv
+      - MODEL_PATH=/app/trained_models
+      - EVALUATION_PLOTS_PATH=/app/evaluation_plots
+    command: python src/main.py
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./trained_models:/app/trained_models
+      - ./evaluation_plots:/app/evaluation_plots
+      - ./results:/app/results
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_PATH=/app/data/CICIDS2017.csv
+      - MODEL_PATH=/app/trained_models
+      - EVALUATION_PLOTS_PATH=/app/evaluation_plots
+    command: streamlit run app.py --server.port 8501

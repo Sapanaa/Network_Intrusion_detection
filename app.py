@@ -5,58 +5,22 @@ import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
-from lime.lime_tabular import LimeTabularExplainer
-import tempfile
-from scapy.all import rdpcap
-
-# --- Utility: Extract basic features from PCAP ---
-def extract_features_from_pcap(pcap_path):
-    packets = rdpcap(pcap_path)
-    data = []
-
-    for pkt in packets:
-        if pkt.haslayer("IP"):
-            features = {
-                "packet_len": len(pkt),
-                "proto": pkt["IP"].proto,
-                "ttl": pkt["IP"].ttl
-            }
-            data.append(features)
-
-    df = pd.DataFrame(data)
-    df['proto'] = pd.to_numeric(df['proto'], errors='coerce')
-    df['ttl'] = pd.to_numeric(df['ttl'], errors='coerce')
-    df['packet_len'] = pd.to_numeric(df['packet_len'], errors='coerce')
-    df.fillna(0, inplace=True)
-
-    return df
-
+from alerts import send_email_alert
 
 def main():
     st.set_page_config(page_title="🚨 Attack Detector", layout="wide")
     st.title("🚨 Real-Time Attack Classifier")
 
-    uploaded_file = st.file_uploader("📂 Upload network log (CSV or PCAP)", type=["csv", "pcap"])
+    uploaded_file = st.file_uploader("📂 Upload network log (CSV)", type=["csv"])
 
     if uploaded_file is not None:
-        file_ext = uploaded_file.name.split('.')[-1]
-
-        if file_ext == 'csv':
-            df = pd.read_csv(uploaded_file)
-            df.columns = df.columns.str.strip()
-            st.write("📊 Uploaded CSV Preview", df.head())
-        elif file_ext == 'pcap':
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_file.write(uploaded_file.read())
-                tmp_path = tmp_file.name
-            df = extract_features_from_pcap(tmp_path)
-            st.write("📡 Parsed PCAP Data", df.head())
-        else:
-            st.error("Unsupported file format.")
-            return
+        df = pd.read_csv(uploaded_file)
+        df.columns = df.columns.str.strip()
+        st.write("📊 Uploaded Data Preview", df.head())
 
         classification_type = st.selectbox("Select Classification Type", ["Binary", "Multiclass"])
 
+        # Load transformers
         try:
             if classification_type == "Binary":
                 scaler = joblib.load("models/scaler.joblib")
@@ -72,12 +36,12 @@ def main():
         try:
             required_features = list(pca.feature_names_in_)
         except AttributeError:
-            st.error("PCA transformer lacks `feature_names_in_`.")
+            st.error("PCA transformer lacks `feature_names_in_`. Please retrain using scikit-learn >=1.0.")
             return
 
         missing_cols = [col for col in required_features if col not in df.columns]
         if missing_cols:
-            st.error(f"Missing columns in input: {', '.join(missing_cols)}")
+            st.error(f"Missing columns: {', '.join(missing_cols)}")
             return
 
         input_data = df[required_features]
@@ -98,6 +62,15 @@ def main():
 
             model = joblib.load(model_path)
             predictions = model.predict(pca_df)
+
+            #yo add gareko
+            # Assuming for binary classification: 1 means threat, 0 means no threat
+            if classification_type == "Binary":
+                threat_rows = df.iloc[predictions == 1]  # select rows where prediction == 1 (threat)
+                if not threat_rows.empty:
+                    for idx, threat_data in threat_rows.iterrows():
+                        send_email_alert(threat_data.to_dict())
+
         except Exception as e:
             st.error(f"Error loading model: {e}")
             return
@@ -120,8 +93,8 @@ def main():
         st.subheader("📊 Model Evaluation Summary")
 
         if classification_type == "Binary":
+            eval_file = 'results/evaluation_summary.csv'
             try:
-                eval_file = 'results/evaluation_summary.csv'
                 evaluation_df = pd.read_csv(eval_file)
                 st.dataframe(evaluation_df)
 
@@ -136,10 +109,39 @@ def main():
                 else:
                     st.write(f"🎯 **{prec_model['model']}** performs better overall (precision).")
             except Exception as e:
-                st.warning("Could not load binary evaluation summary.")
-        else:
-            st.info("Multiclass evaluation summary is not available yet. Only binary results are shown.")
+                st.warning(f"Could not load binary evaluation file: {e}")
 
+        else:
+            eval_file = 'results/evaluation_summary_multi.csv'
+            try:
+                evaluation_df = pd.read_csv(eval_file)
+                evaluation_df.columns = evaluation_df.columns.str.strip()
+
+                # Convert metric columns safely
+                for col in ['accuracy', 'accuracy_weighted', 'f1_macro']:
+                    if col in evaluation_df.columns:
+                        evaluation_df[col] = pd.to_numeric(evaluation_df[col], errors='coerce')
+
+                st.dataframe(evaluation_df)
+
+                # Get best performing models
+                best_accuracy = evaluation_df.loc[evaluation_df['accuracy'].idxmax()] if 'accuracy' in evaluation_df.columns else None
+                best_f1 = evaluation_df.loc[evaluation_df['f1_macro'].idxmax()] if 'f1_macro' in evaluation_df.columns else None
+
+                if best_accuracy is not None:
+                    st.write(f"**Best Accuracy:** {best_accuracy['model']} - {best_accuracy['accuracy']:.3f}")
+                if best_f1 is not None:
+                    st.write(f"**Best F1 Macro:** {best_f1['model']} - {best_f1['f1_macro']:.3f}")
+
+                if best_accuracy is not None and best_f1 is not None:
+                    if best_accuracy['accuracy'] >= best_f1['f1_macro']:
+                        st.write(f"🎯 **{best_accuracy['model']}** performs better overall (accuracy).")
+                    else:
+                        st.write(f"🎯 **{best_f1['model']}** performs better overall (macro F1 score).")
+            except FileNotFoundError:
+                st.warning("Multiclass evaluation summary file not found.")
+            except Exception as e:
+                st.error(f"Failed to load or parse evaluation summary: {e}")
 
 if __name__ == "__main__":
     main()
